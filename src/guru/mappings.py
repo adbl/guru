@@ -367,22 +367,27 @@ class MappingManager:
             mapping = self.mappings_by_controller_id[self._mode].get(
                 event.controller_id
             )
-            if event.toggle_ev.value:
-                name = next(
-                    (
-                        n
-                        for n, id in self.controller_map.items()
-                        if id == event.controller_id
-                    ),
-                    None,
-                )
-                if name is not None:
-                    self._pressed.add(name)
-                # A Control hands the raw value to a user callback, which can only
-                # tell a press from a release if it sees both edges. The other
-                # mappings wait for the release, where a combination is known.
-                if not isinstance(mapping, Control):
-                    return
+            name = next(
+                (
+                    n
+                    for n, id in self.controller_map.items()
+                    if id == event.controller_id
+                ),
+                None,
+            )
+            pressed = bool(event.toggle_ev.value)
+            if pressed and name is not None:
+                self._pressed.add(name)
+
+            # A Control hands the raw value to a user callback, which can only tell a
+            # press from a release if it sees both edges. It is never resolved as part
+            # of a combination either, so holding one down while another switch is
+            # pressed still delivers every edge of both.
+            if isinstance(mapping, Control):
+                if not pressed:
+                    self._pressed.discard(name)
+            elif pressed:
+                return
             else:
                 mapping = self._get_multi_switch_mapping(
                     frozenset(self._pressed), event
