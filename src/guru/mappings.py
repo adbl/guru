@@ -364,15 +364,25 @@ class MappingManager:
         event_type = event.WhichOneof("event")
 
         if event_type == "toggle_ev":
-            if event.toggle_ev.value == 1:
-                self._pressed.add(
-                    next(
-                        name
-                        for name, id in self.controller_map.items()
+            mapping = self.mappings_by_controller_id[self._mode].get(
+                event.controller_id
+            )
+            if event.toggle_ev.value:
+                name = next(
+                    (
+                        n
+                        for n, id in self.controller_map.items()
                         if id == event.controller_id
-                    )
+                    ),
+                    None,
                 )
-                return
+                if name is not None:
+                    self._pressed.add(name)
+                # A Control hands the raw value to a user callback, which can only
+                # tell a press from a release if it sees both edges. The other
+                # mappings wait for the release, where a combination is known.
+                if not isinstance(mapping, Control):
+                    return
             else:
                 mapping = self._get_multi_switch_mapping(
                     frozenset(self._pressed), event
